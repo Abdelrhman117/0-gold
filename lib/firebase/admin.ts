@@ -11,22 +11,19 @@ let _auth: Auth      | undefined;
 let _db:   Firestore | undefined;
 
 /**
- * Handles every way Vercel (or any host) might store a PEM private key:
- *  1. Literal \n characters  →  "-----BEGIN...\\nMIIE...\\n-----END..."
- *  2. Real newlines already  →  "-----BEGIN...\nMIIE...\n-----END..."
- *  3. Accidentally wrapped in quotes  →  '"-----BEGIN..."'
- *  4. Windows CRLF  →  \r\n
+ * Normalises a Firebase private key regardless of how the host stored it.
+ * - strips accidental surrounding quotes
+ * - converts literal \n (two chars) → real newline  (always safe — real
+ *   newlines are a single char so the regex never touches them)
+ * - normalises CRLF / CR → LF
  */
 function formatPrivateKey(key: string): string {
-  // Strip accidental surrounding quotes
-  let k = key.trim().replace(/^["']|["']$/g, "");
-  // If no real newlines exist, convert literal \n to real newlines
-  if (!k.includes("\n")) {
-    k = k.replace(/\\n/g, "\n");
-  }
-  // Normalize CRLF → LF
-  k = k.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
-  return k;
+  return key
+    .trim()
+    .replace(/^["']|["']$/g, "")
+    .replace(/\\n/g, "\n")
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n");
 }
 
 function getApp(): App {
