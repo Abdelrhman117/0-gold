@@ -26,5 +26,15 @@ function getAdminApp(): App {
   return _app;
 }
 
-export const adminAuth: Auth    = new Proxy({} as Auth,    { get: (_, p) => Reflect.get(getAuth(getAdminApp()),      p) });
-export const adminDb:   Firestore = new Proxy({} as Firestore, { get: (_, p) => Reflect.get(getFirestore(getAdminApp()), p) });
+function lazyProxy<T extends object>(getInstance: () => T): T {
+  return new Proxy({} as T, {
+    get(_, prop) {
+      const instance = getInstance();
+      const val = (instance as Record<string | symbol, unknown>)[prop];
+      return typeof val === "function" ? (val as Function).bind(instance) : val;
+    },
+  });
+}
+
+export const adminAuth: Auth      = lazyProxy(() => getAuth(getAdminApp()));
+export const adminDb:   Firestore = lazyProxy(() => getFirestore(getAdminApp()));
