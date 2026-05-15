@@ -10,6 +10,25 @@ let _app:  App       | undefined;
 let _auth: Auth      | undefined;
 let _db:   Firestore | undefined;
 
+/**
+ * Handles every way Vercel (or any host) might store a PEM private key:
+ *  1. Literal \n characters  →  "-----BEGIN...\\nMIIE...\\n-----END..."
+ *  2. Real newlines already  →  "-----BEGIN...\nMIIE...\n-----END..."
+ *  3. Accidentally wrapped in quotes  →  '"-----BEGIN..."'
+ *  4. Windows CRLF  →  \r\n
+ */
+function formatPrivateKey(key: string): string {
+  // Strip accidental surrounding quotes
+  let k = key.trim().replace(/^["']|["']$/g, "");
+  // If no real newlines exist, convert literal \n to real newlines
+  if (!k.includes("\n")) {
+    k = k.replace(/\\n/g, "\n");
+  }
+  // Normalize CRLF → LF
+  k = k.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  return k;
+}
+
 function getApp(): App {
   if (_app) return _app;
   if (getApps().length > 0) return (_app = getApps()[0]);
@@ -30,8 +49,7 @@ function getApp(): App {
     credential: cert({
       projectId,
       clientEmail,
-      // Vercel stores multi-line values with literal \n — convert to real newlines.
-      privateKey: privateKey.replace(/\\n/g, "\n"),
+      privateKey: formatPrivateKey(privateKey),
     }),
   }));
 }
