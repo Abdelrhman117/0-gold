@@ -10,6 +10,22 @@ let _app:  App       | undefined;
 let _auth: Auth      | undefined;
 let _db:   Firestore | undefined;
 
+/**
+ * Normalises a Firebase private key regardless of how the host stored it.
+ * - strips accidental surrounding quotes
+ * - converts literal \n (two chars) → real newline  (always safe — real
+ *   newlines are a single char so the regex never touches them)
+ * - normalises CRLF / CR → LF
+ */
+function formatPrivateKey(key: string): string {
+  return key
+    .trim()
+    .replace(/^["']|["']$/g, "")
+    .replace(/\\n/g, "\n")
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n");
+}
+
 function getApp(): App {
   if (_app) return _app;
   if (getApps().length > 0) return (_app = getApps()[0]);
@@ -30,8 +46,7 @@ function getApp(): App {
     credential: cert({
       projectId,
       clientEmail,
-      // Vercel stores multi-line values with literal \n — convert to real newlines.
-      privateKey: privateKey.replace(/\\n/g, "\n"),
+      privateKey: formatPrivateKey(privateKey),
     }),
   }));
 }
