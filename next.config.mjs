@@ -1,4 +1,4 @@
-import type { NextConfig } from "next";
+// @ts-check
 import withPWAInit from "@ducanh2912/next-pwa";
 
 const withPWA = withPWAInit({
@@ -6,13 +6,11 @@ const withPWA = withPWAInit({
   cacheOnFrontEndNav: true,
   aggressiveFrontEndNavCaching: true,
   reloadOnOnline: true,
-  swcMinify: true,
   disable: process.env.NODE_ENV === "development",
   workboxOptions: {
     disableDevLogs: true,
     runtimeCaching: [
       {
-        // Cache Google Fonts
         urlPattern: /^https:\/\/fonts\.(?:googleapis|gstatic)\.com\/.*/i,
         handler: "CacheFirst",
         options: {
@@ -21,7 +19,6 @@ const withPWA = withPWAInit({
         },
       },
       {
-        // Cache static assets
         urlPattern: /\.(?:eot|otf|ttc|ttf|woff|woff2|font\.css)$/i,
         handler: "StaleWhileRevalidate",
         options: {
@@ -30,7 +27,6 @@ const withPWA = withPWAInit({
         },
       },
       {
-        // Cache images
         urlPattern: /\.(?:jpg|jpeg|gif|png|svg|ico|webp)$/i,
         handler: "StaleWhileRevalidate",
         options: {
@@ -39,7 +35,6 @@ const withPWA = withPWAInit({
         },
       },
       {
-        // Cache JS/CSS
         urlPattern: /\/_next\/static.+\.js$/i,
         handler: "CacheFirst",
         options: {
@@ -48,7 +43,6 @@ const withPWA = withPWAInit({
         },
       },
       {
-        // Firebase API calls — network first, fall back to cache
         urlPattern: /^https:\/\/firestore\.googleapis\.com\/.*/i,
         handler: "NetworkFirst",
         options: {
@@ -58,7 +52,6 @@ const withPWA = withPWAInit({
         },
       },
       {
-        // App pages — network first
         urlPattern: /^https?:\/\//,
         handler: "NetworkFirst",
         options: {
@@ -71,9 +64,9 @@ const withPWA = withPWAInit({
   },
 });
 
-const nextConfig: NextConfig = {
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   reactStrictMode: true,
-  // Allow optimised images from Firebase Storage
   images: {
     remotePatterns: [
       {
@@ -83,7 +76,6 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  // Enforce RTL-aware headers
   async headers() {
     return [
       {
