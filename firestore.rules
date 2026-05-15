@@ -1,0 +1,120 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ─── Helpers ─────────────────────────────────────────────────────────────
+
+    function isSuperAdmin() {
+      return request.auth != null
+          && request.auth.token.super_admin == true;
+    }
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function belongsToTenant(tenantId) {
+      return isAuthenticated()
+          && request.auth.token.tenant_id == tenantId;
+    }
+
+    function hasActiveSubscription(tenantId) {
+      let tenant = get(/databases/$(database)/documents/tenants/$(tenantId));
+      return tenant.data.subscription_end > request.time;
+    }
+
+    function canWrite(tenantId) {
+      return belongsToTenant(tenantId)
+          && hasActiveSubscription(tenantId);
+    }
+
+    function hasRole(tenantId, role) {
+      return belongsToTenant(tenantId)
+          && request.auth.token.role == role;
+    }
+
+    function isOwnerOrAdmin(tenantId) {
+      return hasRole(tenantId, "owner") || hasRole(tenantId, "admin");
+    }
+
+    // ─── Super Admin: unrestricted access across all tenants ─────────────────
+
+    match /{document=**} {
+      allow read, write: if isSuperAdmin();
+    }
+
+    // ─── Tenants ──────────────────────────────────────────────────────────────
+
+    match /tenants/{tenantId} {
+      // Any authenticated member of the tenant may read their own tenant doc.
+      allow read: if belongsToTenant(tenantId);
+
+      // Only owners/admins with an active subscription may update tenant metadata.
+      allow update: if canWrite(tenantId) && isOwnerOrAdmin(tenantId);
+
+      // Only super admin may create or delete tenant root documents (handled above).
+      allow create, delete: if false;
+
+      // ─── Users ─────────────────────────────────────────────────────────────
+
+      match /users/{userId} {
+        allow read:   if belongsToTenant(tenantId);
+        allow create: if canWrite(tenantId) && isOwnerOrAdmin(tenantId);
+        allow update: if canWrite(tenantId)
+                      && (isOwnerOrAdmin(tenantId)
+                          || request.auth.uid == userId);
+        allow delete: if canWrite(tenantId) && isOwnerOrAdmin(tenantId);
+      }
+
+      // ─── Inventory ─────────────────────────────────────────────────────────
+
+      match /inventory/{itemId} {
+        allow read:             if belongsToTenant(tenantId);
+        allow create, update:   if canWrite(tenantId);
+        allow delete:           if canWrite(tenantId) && isOwnerOrAdmin(tenantId);
+      }
+
+      // ─── Invoices ──────────────────────────────────────────────────────────
+
+      match /invoices/{invoiceId} {
+        allow read:   if belongsToTenant(tenantId);
+        allow create: if canWrite(tenantId);
+        // Invoices are immutable once created; only admins may void/update.
+        allow update: if canWrite(tenantId) && isOwnerOrAdmin(tenantId);
+        allow delete: if false;
+      }
+
+      // ─── Suppliers ─────────────────────────────────────────────────────────
+
+      match /suppliers/{supplierId} {
+        allow read:           if belongsToTenant(tenantId);
+        allow create, update: if canWrite(tenantId);
+        allow delete:         if canWrite(tenantId) && isOwnerOrAdmin(tenantId);
+      }
+
+      // ─── Active Offers ─────────────────────────────────────────────────────
+
+      match /offers/{offerId} {
+        allow read:           if belongsToTenant(tenantId);
+        allow create, update: if canWrite(tenantId) && isOwnerOrAdmin(tenantId);
+        allow delete:         if canWrite(tenantId) && isOwnerOrAdmin(tenantId);
+      }
+
+      // ─── Settings ──────────────────────────────────────────────────────────
+
+      match /settings/{docId} {
+        allow read:   if belongsToTenant(tenantId);
+        allow write:  if canWrite(tenantId) && isOwnerOrAdmin(tenantId);
+      }
+
+      // ─── Audit Logs (append-only) ──────────────────────────────────────────
+
+      match /audit_logs/{logId} {
+        allow read:   if belongsToTenant(tenantId) && isOwnerOrAdmin(tenantId);
+        allow create: if belongsToTenant(tenantId);
+        allow update, delete: if false;
+      }
+    }
+  }
+}
