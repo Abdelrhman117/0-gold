@@ -15,8 +15,7 @@
     "firebase": "^10.12.2",
     "firebase-admin": "^12.2.0",
     "qrcode": "^1.5.4",
-    "@ducanh2912/next-pwa": "^10.2.9",
-    "tailwindcss-rtl": "^0.9.1"
+    "@ducanh2912/next-pwa": "^10.2.9"
   },
   "devDependencies": {
     "typescript": "^5.4.5",

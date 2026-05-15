@@ -44,9 +44,7 @@ const config: Config = {
       },
     },
   },
-  plugins: [
-    require("tailwindcss-rtl"),
-  ],
+  plugins: [],
 };
 
 export default config;
