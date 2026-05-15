@@ -9,14 +9,13 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "next": "14.2.29",
+    "next": "14.2.35",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "firebase": "^10.12.2",
     "firebase-admin": "^12.2.0",
     "qrcode": "^1.5.4",
-    "@ducanh2912/next-pwa": "^10.2.9",
-    "tailwindcss-rtl": "^0.9.1"
+    "@ducanh2912/next-pwa": "^10.2.9"
   },
   "devDependencies": {
     "typescript": "^5.4.5",
@@ -28,6 +27,6 @@
     "autoprefixer": "^10.4.19",
     "postcss": "^8.4.38",
     "eslint": "^8.57.0",
-    "eslint-config-next": "14.2.29"
+    "eslint-config-next": "14.2.35"
   }
 }
