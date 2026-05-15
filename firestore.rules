@@ -44,19 +44,21 @@ service cloud.firestore {
       allow read, write: if isSuperAdmin();
     }
 
+    // ─── Audit Super Admin log (root collection — written only by Admin SDK) ──
+
+    match /audit_super_admin/{docId} {
+      allow read:             if isSuperAdmin();
+      allow create, update, delete: if false; // Admin SDK only
+    }
+
     // ─── Tenants ──────────────────────────────────────────────────────────────
 
     match /tenants/{tenantId} {
-      // Any authenticated member of the tenant may read their own tenant doc.
-      allow read: if belongsToTenant(tenantId);
-
-      // Only owners/admins with an active subscription may update tenant metadata.
+      allow read:   if belongsToTenant(tenantId);
       allow update: if canWrite(tenantId) && isOwnerOrAdmin(tenantId);
+      allow create, delete: if false; // super admin only (handled above)
 
-      // Only super admin may create or delete tenant root documents (handled above).
-      allow create, delete: if false;
-
-      // ─── Users ─────────────────────────────────────────────────────────────
+      // ─── Users ───────────────────────────────────────────────────────────
 
       match /users/{userId} {
         allow read:   if belongsToTenant(tenantId);
@@ -67,33 +69,40 @@ service cloud.firestore {
         allow delete: if canWrite(tenantId) && isOwnerOrAdmin(tenantId);
       }
 
-      // ─── Inventory ─────────────────────────────────────────────────────────
+      // ─── Inventory ───────────────────────────────────────────────────────
 
       match /inventory/{itemId} {
-        allow read:             if belongsToTenant(tenantId);
-        allow create, update:   if canWrite(tenantId);
-        allow delete:           if canWrite(tenantId) && isOwnerOrAdmin(tenantId);
-      }
-
-      // ─── Invoices ──────────────────────────────────────────────────────────
-
-      match /invoices/{invoiceId} {
-        allow read:   if belongsToTenant(tenantId);
-        allow create: if canWrite(tenantId);
-        // Invoices are immutable once created; only admins may void/update.
-        allow update: if canWrite(tenantId) && isOwnerOrAdmin(tenantId);
-        allow delete: if false;
-      }
-
-      // ─── Suppliers ─────────────────────────────────────────────────────────
-
-      match /suppliers/{supplierId} {
         allow read:           if belongsToTenant(tenantId);
         allow create, update: if canWrite(tenantId);
         allow delete:         if canWrite(tenantId) && isOwnerOrAdmin(tenantId);
       }
 
-      // ─── Active Offers ─────────────────────────────────────────────────────
+      // ─── Invoices (immutable after creation) ─────────────────────────────
+
+      match /invoices/{invoiceId} {
+        allow read:   if belongsToTenant(tenantId);
+        allow create: if canWrite(tenantId);
+        allow update: if canWrite(tenantId) && isOwnerOrAdmin(tenantId);
+        allow delete: if false;
+      }
+
+      // ─── Suppliers ───────────────────────────────────────────────────────
+
+      match /suppliers/{supplierId} {
+        allow read:           if belongsToTenant(tenantId);
+        allow create, update: if canWrite(tenantId);
+        allow delete:         if canWrite(tenantId) && isOwnerOrAdmin(tenantId);
+
+        // Ledger entries — written atomically by Cloud Functions (Admin SDK).
+        // Client only reads; all writes go through settleSupplierWeight /
+        // addSupplierLedgerEntry callables which use the Admin SDK.
+        match /ledger_entries/{entryId} {
+          allow read:                   if belongsToTenant(tenantId);
+          allow create, update, delete: if false; // Cloud Functions (Admin SDK) only
+        }
+      }
+
+      // ─── Offers ──────────────────────────────────────────────────────────
 
       match /offers/{offerId} {
         allow read:           if belongsToTenant(tenantId);
@@ -101,18 +110,18 @@ service cloud.firestore {
         allow delete:         if canWrite(tenantId) && isOwnerOrAdmin(tenantId);
       }
 
-      // ─── Settings ──────────────────────────────────────────────────────────
+      // ─── Settings (gold prices, shop config, …) ──────────────────────────
 
       match /settings/{docId} {
-        allow read:   if belongsToTenant(tenantId);
-        allow write:  if canWrite(tenantId) && isOwnerOrAdmin(tenantId);
+        allow read:  if belongsToTenant(tenantId);
+        allow write: if canWrite(tenantId) && isOwnerOrAdmin(tenantId);
       }
 
-      // ─── Audit Logs (append-only) ──────────────────────────────────────────
+      // ─── Audit Logs (append-only, admins can read) ───────────────────────
 
       match /audit_logs/{logId} {
-        allow read:   if belongsToTenant(tenantId) && isOwnerOrAdmin(tenantId);
-        allow create: if belongsToTenant(tenantId);
+        allow read:           if belongsToTenant(tenantId) && isOwnerOrAdmin(tenantId);
+        allow create:         if belongsToTenant(tenantId);
         allow update, delete: if false;
       }
     }

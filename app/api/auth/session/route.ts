@@ -1,9 +1,6 @@
 /**
- * POST  /api/auth/session  — Exchange a Firebase ID token for httpOnly session cookies.
- * DELETE /api/auth/session — Clear session (logout).
- *
- * The middleware reads __session, __role, and __tenant cookies to make
- * routing decisions without hitting Firebase on every request.
+ * POST   /api/auth/session  — Exchange Firebase ID token for httpOnly session cookies.
+ * DELETE /api/auth/session  — Clear session (logout).
  */
 import { NextRequest, NextResponse } from "next/server";
 import { adminAuth } from "@/lib/firebase/admin";
@@ -21,13 +18,17 @@ const SESSION_TTL_SEC = SESSION_TTL_MS / 1000;
 export async function POST(request: NextRequest) {
   try {
     const { idToken } = (await request.json()) as { idToken?: string };
-    if (!idToken) return NextResponse.json({ error: "idToken required" }, { status: 400 });
+    if (!idToken) {
+      return NextResponse.json({ error: "idToken required" }, { status: 400 });
+    }
 
-    const sessionCookie = await adminAuth.createSessionCookie(idToken, {
+    const auth = adminAuth();
+
+    const sessionCookie = await auth.createSessionCookie(idToken, {
       expiresIn: SESSION_TTL_MS,
     });
 
-    const decoded  = await adminAuth.verifyIdToken(idToken);
+    const decoded  = await auth.verifyIdToken(idToken);
     const role     = decoded.super_admin ? "super_admin" : (decoded.role as string) ?? "";
     const tenantId = (decoded.tenant_id as string) ?? "";
 
@@ -36,9 +37,11 @@ export async function POST(request: NextRequest) {
     res.cookies.set("__role",    role,           { ...COOKIE_OPTS, maxAge: SESSION_TTL_SEC });
     res.cookies.set("__tenant",  tenantId,       { ...COOKIE_OPTS, maxAge: SESSION_TTL_SEC });
     return res;
+
   } catch (err) {
-    console.error("[session] POST:", err);
-    return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[session] POST failed:", message);
+    return NextResponse.json({ error: "session_failed", detail: message }, { status: 401 });
   }
 }
 

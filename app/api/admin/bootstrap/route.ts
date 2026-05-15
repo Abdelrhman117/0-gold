@@ -2,7 +2,6 @@
  * POST /api/admin/bootstrap
  * One-time route — creates alwazer@admin.com as super admin.
  * Protected by BOOTSTRAP_SECRET env var.
- * Call once after deploy, then this route becomes a no-op.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { adminAuth, adminDb } from "@/lib/firebase/admin";
@@ -23,29 +22,32 @@ export async function POST(request: NextRequest) {
   const password = process.env.SUPER_ADMIN_PASSWORD ?? body.password;
 
   if (!password) {
-    return NextResponse.json({ error: "SUPER_ADMIN_PASSWORD env var or password in body required." }, { status: 400 });
+    return NextResponse.json(
+      { error: "SUPER_ADMIN_PASSWORD env var or password in body required." },
+      { status: 400 }
+    );
   }
 
   try {
-    // Create user or get existing
+    const auth = adminAuth();
+    const db   = adminDb();
+
     let uid: string;
     try {
-      const existing = await adminAuth.getUserByEmail(email);
+      const existing = await auth.getUserByEmail(email);
       uid = existing.uid;
     } catch {
-      const created = await adminAuth.createUser({ email, password, displayName: "Super Admin" });
+      const created = await auth.createUser({ email, password, displayName: "Super Admin" });
       uid = created.uid;
     }
 
-    // Set super_admin custom claim
-    await adminAuth.setCustomUserClaims(uid, { super_admin: true });
+    await auth.setCustomUserClaims(uid, { super_admin: true });
 
-    // Audit log
-    await adminDb.collection("audit_super_admin").add({
-      action:    "BOOTSTRAP_SUPER_ADMIN",
+    await db.collection("audit_super_admin").add({
+      action:     "BOOTSTRAP_SUPER_ADMIN",
       target_uid: uid,
       email,
-      timestamp: FieldValue.serverTimestamp(),
+      timestamp:  FieldValue.serverTimestamp(),
     });
 
     return NextResponse.json({ ok: true, uid, email });
