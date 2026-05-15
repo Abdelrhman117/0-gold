@@ -1,0 +1,33 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Global RTL defaults ────────────────────────────────────────────────── */
+html {
+  direction: rtl;
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-[#0f1117] text-white antialiased;
+  font-family: var(--font-cairo), var(--font-tajawal), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* ── Custom scrollbar ───────────────────────────────────────────────────── */
+::-webkit-scrollbar        { width: 5px; height: 5px; }
+::-webkit-scrollbar-track  { background: #0f1117; }
+::-webkit-scrollbar-thumb  { background: #21262d; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #036a71; }
+
+/* ── Print: hide everything except the ticket ──────────────────────────── */
+@media print {
+  body > *:not(#printable-ticket-root) { display: none !important; }
+}
+
+/* ── Number inputs: hide spinners ──────────────────────────────────────── */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+input[type="number"] { -moz-appearance: textfield; }
+
+/* ── Selection color ────────────────────────────────────────────────────── */
+::selection { background-color: #036a71; color: #fff; }

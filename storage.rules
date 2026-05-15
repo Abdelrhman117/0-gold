@@ -1,0 +1,42 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function belongsToTenant(tenantId) {
+      return isAuthenticated()
+          && request.auth.token.tenant_id == tenantId;
+    }
+
+    function isSuperAdmin() {
+      return request.auth != null
+          && request.auth.token.super_admin == true;
+    }
+
+    // Super admin: unrestricted
+    match /{allPaths=**} {
+      allow read, write: if isSuperAdmin();
+    }
+
+    // Tenant inventory images
+    match /tenants/{tenantId}/inventory/{itemId}/{fileName} {
+      allow read:  if belongsToTenant(tenantId);
+      allow write: if belongsToTenant(tenantId)
+                   && request.resource.size  < 5 * 1024 * 1024   // 5 MB max
+                   && request.resource.contentType.matches('image/.*');
+      allow delete: if belongsToTenant(tenantId);
+    }
+
+    // Tenant logo
+    match /tenants/{tenantId}/logo/{fileName} {
+      allow read:  if belongsToTenant(tenantId);
+      allow write: if belongsToTenant(tenantId)
+                   && request.resource.size  < 1 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+    }
+  }
+}
