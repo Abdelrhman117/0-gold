@@ -35,7 +35,10 @@ function LoginForm() {
         body:    JSON.stringify({ idToken }),
       });
 
-      if (!res.ok) throw new Error("فشل إنشاء الجلسة — حاول مرة أخرى.");
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.detail ?? body.error ?? "فشل إنشاء الجلسة — حاول مرة أخرى.");
+      }
 
       const claims       = await user.getIdTokenResult();
       const isSuperAdmin = claims.claims.super_admin === true;
